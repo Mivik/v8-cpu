@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use std::fmt::Debug;
 
 #[derive(Clone, Copy)]
@@ -193,9 +194,13 @@ impl VM {
         true
     }
 
-    pub fn step(&mut self) -> bool {
+    pub fn step(&mut self) -> Result<bool> {
         let instr = self.dis(self.pc);
-        self.pc.0 += 2;
-        self.exec(instr)
+        self.pc.0 = self
+            .pc
+            .0
+            .checked_add(2)
+            .ok_or_else(|| anyhow!("Program counter exceeded memory bounds (> 256)"))?;
+        Ok(self.exec(instr))
     }
 }

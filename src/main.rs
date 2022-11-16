@@ -98,10 +98,9 @@ fn main() -> Result<()> {
     }
     let mut vm = VM::new();
     vm.fill(&bytes);
-    // vm.interactive()
     if args.quiet {
         execute!(stdout(), Clear(ClearType::All))?;
-        while vm.step() {}
+        while vm.step()? {}
         vm.print_state()
     } else {
         vm.interactive()

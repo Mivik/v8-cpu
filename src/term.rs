@@ -101,38 +101,42 @@ impl TerminalExt for VM {
     fn interactive(&mut self) -> Result<()> {
         enable_raw_mode()?;
         execute!(stdout(), cursor::Hide, Clear(ClearType::All))?;
-        loop {
-            self.print_state()?;
-            if let Event::Key(event) = event::read()? {
-                match event.code {
-                    KeyCode::Enter => {
-                        while self.step() {}
-                        break;
-                    }
-                    KeyCode::Char(c) => match c {
-                        's' => {
-                            if !self.step() {
-                                break;
-                            }
-                        }
-                        'q' => {
+        fn inner(vm: &mut VM) -> Result<()> {
+            loop {
+                vm.print_state()?;
+                if let Event::Key(event) = event::read()? {
+                    match event.code {
+                        KeyCode::Enter => {
+                            while vm.step()? {}
                             break;
                         }
-                        'r' => {
-                            self.reset();
-                        }
-                        'z' => {
-                            self.undo();
-                        }
+                        KeyCode::Char(c) => match c {
+                            's' => {
+                                if !vm.step()? {
+                                    break;
+                                }
+                            }
+                            'q' => {
+                                break;
+                            }
+                            'r' => {
+                                vm.reset();
+                            }
+                            'z' => {
+                                vm.undo();
+                            }
+                            _ => {}
+                        },
                         _ => {}
-                    },
-                    _ => {}
+                    }
                 }
             }
+            Ok(())
         }
+        let res = inner(self);
         self.print_state()?;
         execute!(stdout(), cursor::Show)?;
         disable_raw_mode()?;
-        Ok(())
+        res
     }
 }
