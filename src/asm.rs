@@ -82,39 +82,29 @@ pub fn assemble(code: &str) -> Result<Vec<u8>> {
             .map(str::to_string)
             .ok_or_else(|| anyhow!("Expected comma between arguments"))
     }
-    fn end(s: String) -> Result<()> {
-        let s = s.trim_start();
-        if !s.is_empty() {
-            bail!("Unexpected extra content: {s}");
-        }
-        Ok(())
-    }
 
     fn parse_line(s: &str, labels: &mut HashMap<String, u8>, res: &mut Output) -> Result<()> {
-        fn p_rv(s: String, res: &mut Output, op: u8) -> Result<()> {
+        fn p_rv(s: String, res: &mut Output, op: u8) -> Result<String> {
             let (reg, s) = getr(s)?;
             let (addr, s) = getv(comma(s)?)?;
-            end(s)?;
             res.push(Const(jo(op, reg)))?;
             res.push(addr)?;
-            Ok(())
+            Ok(s)
         }
-        fn p_rrr(s: String, res: &mut Output, op: u8) -> Result<()> {
+        fn p_rrr(s: String, res: &mut Output, op: u8) -> Result<String> {
             let (r1, s) = getr(s)?;
             let (r2, s) = getr(comma(s)?)?;
             let (r3, s) = getr(comma(s)?)?;
-            end(s)?;
             res.push(Const(jo(op, r1)))?;
             res.push(Const(jo(r2, r3)))?;
-            Ok(())
+            Ok(s)
         }
-        fn p_rr(s: String, res: &mut Output, op: u8) -> Result<()> {
+        fn p_rr(s: String, res: &mut Output, op: u8) -> Result<String> {
             let (r1, s) = getr(s)?;
             let (r2, s) = getr(comma(s)?)?;
-            end(s)?;
             res.push(Const(jo(op, r1)))?;
             res.push(Const(r2))?;
-            Ok(())
+            Ok(s)
         }
 
         let mut s = s.trim();
@@ -160,10 +150,11 @@ pub fn assemble(code: &str) -> Result<Vec<u8>> {
         }
         let (mnemonic, s) = s.split_at(s.find(WS).unwrap_or(s.len()));
         let s = s.to_string();
-        match mnemonic.to_ascii_lowercase().as_ref() {
+        let s = match mnemonic.to_ascii_lowercase().as_ref() {
             "none" => {
                 res.push(Const(0x00))?;
                 res.push(Const(0x00))?;
+                s
             }
             "loadm" => p_rv(s, res, 1)?,
             "loadb" => p_rv(s, res, 2)?,
@@ -171,9 +162,9 @@ pub fn assemble(code: &str) -> Result<Vec<u8>> {
             "move" => {
                 let (r1, s) = getr(s)?;
                 let (r2, s) = getr(comma(s)?)?;
-                end(s)?;
                 res.push(Const(0x40))?;
                 res.push(Const(jo(r2, r1)))?;
+                s
             }
             "addi" => p_rrr(s, res, 5)?,
             "addf" => p_rrr(s, res, 6)?,
@@ -185,18 +176,23 @@ pub fn assemble(code: &str) -> Result<Vec<u8>> {
             "halt" => {
                 res.push(Const(0xC0))?;
                 res.push(Const(0x00))?;
+                s
             }
             "loadp" => p_rr(s, res, 13)?,
             "storep" => p_rr(s, res, 14)?,
             "jumpl" => p_rv(s, res, 15)?,
             "db" => {
                 let (val, s) = getv(s)?;
-                end(s)?;
                 res.push(val)?;
+                s
             }
             _ => {
                 bail!("Unknown mnemonic: {mnemonic}");
             }
+        };
+        let s = s.trim_start();
+        if !s.is_empty() {
+            bail!("Unexpected extra content: {s}");
         }
         Ok(())
     }
