@@ -159,6 +159,7 @@ impl VM {
             StoreToMemory(reg, addr) => SetMem(addr, self.getr(reg)),
             Move(from, to) => SetReg(to, self.getr(from)),
             AddInt(r0, r1, r2) => SetReg(r0, Const(self.getr(r1).0.wrapping_add(self.getr(r2).0))),
+            AddFloat(r0, r1, r2) => SetReg(r0, Const(add_float(self.getr(r1).0, self.getr(r2).0))),
             Or(r0, r1, r2) => SetReg(r0, Const(self.getr(r1).0 | self.getr(r2).0)),
             And(r0, r1, r2) => SetReg(r0, Const(self.getr(r1).0 & self.getr(r2).0)),
             Xor(r0, r1, r2) => SetReg(r0, Const(self.getr(r1).0 ^ self.getr(r2).0)),
@@ -189,7 +190,6 @@ impl VM {
                     None
                 }
             }
-            _ => unimplemented!(),
         });
         true
     }
@@ -203,4 +203,24 @@ impl VM {
             .ok_or_else(|| anyhow!("Program counter exceeded memory bounds (> 256)"))?;
         Ok(self.exec(instr))
     }
+}
+
+fn add_float(a: u8, b: u8) -> u8 {
+    fn decompose(x: u8) -> (u8, u16) {
+        (x >> 7, ((x & 0xf) as u16) << ((x >> 4) & 0x7))
+    }
+    let (a_sign, a_fix) = decompose(a);
+    let (b_sign, b_fix) = decompose(b);
+    let (sign, fix) = if a_sign == b_sign {
+        (a_sign, a_fix + b_fix)
+    } else if a_fix > b_fix {
+        (a_sign, a_fix - b_fix)
+    } else if b_fix > a_fix {
+        (b_sign, b_fix - a_fix)
+    } else {
+        (0, 0)
+    };
+    let expo = 16 - fix.leading_zeros() - 4;
+    let expo = (expo as u8).max(0).min(7);
+    (sign << 7) | (expo << 4) | ((fix >> expo) as u8 & 0xf)
 }
