@@ -1,0 +1,9 @@
+[package]
+name = "v8-cpu"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.0.24", features = ["derive"] }
+crossterm = "0.25"
