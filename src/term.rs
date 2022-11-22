@@ -4,7 +4,10 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
 use std::io::stdout;
 
@@ -100,7 +103,7 @@ impl TerminalExt for VM {
 
     fn interactive(&mut self) -> Result<()> {
         enable_raw_mode()?;
-        execute!(stdout(), cursor::Hide, Clear(ClearType::All))?;
+        execute!(stdout(), cursor::Hide, EnterAlternateScreen)?;
         fn inner(vm: &mut VM) -> Result<()> {
             loop {
                 vm.print_state()?;
@@ -135,7 +138,7 @@ impl TerminalExt for VM {
         }
         let res = inner(self);
         self.print_state()?;
-        execute!(stdout(), cursor::Show)?;
+        execute!(stdout(), cursor::Show, LeaveAlternateScreen)?;
         disable_raw_mode()?;
         res
     }
